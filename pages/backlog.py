@@ -194,7 +194,7 @@ def render():
         st.plotly_chart(fig_aging, use_container_width=True)
 
     with col2:
-        st.subheader("📍 Top CDs com Backlog")
+        st.subheader("📍 Pré-Entrega")
 
         top_pre = (
             df.groupby("pre_entrega")
@@ -219,6 +219,15 @@ def render():
     # =========================
     st.subheader("🗺️ Backlog por Estado")
 
+    estado_sel = st.multiselect(
+        "Filtrar por estado",
+        options=df["estado"].dropna().unique(),
+        default=df["estado"].dropna().unique(),
+        key="estado_multi"
+    )
+
+    df_estado = df[df["estado"].isin(estado_sel)]
+
     estado = (
         df.groupby("estado")
         .size()
@@ -236,19 +245,19 @@ def render():
 
     st.plotly_chart(fig_estado, use_container_width=True)
 
-    estado_sel = st.selectbox(
-        "Filtrar por estado",
-        ["Todos"] + list(estado["estado"].unique()),
-        key="estado_individual"
-    )
-
-    if estado_sel != "Todos":
-        df = df[df["estado"] == estado_sel]
-
     # =========================
     # 🏙️ CIDADE
     # =========================
-    st.subheader("🏙️ Top Cidades")
+    st.subheader("🏙️ Backlog por Cidade")
+
+    cidade_sel = st.multiselect(
+        "Filtrar cidades",
+        options=df["cidade"].dropna().unique(),
+        default=df["cidade"].dropna().unique(),
+        key="cidade_multi"
+    )
+
+    df_cidade = df[df["cidade"].isin(cidade_sel)]
 
     cidade = (
         df.groupby("cidade")
@@ -273,6 +282,15 @@ def render():
     # =========================
     st.subheader("👤 Clientes com Maior Backlog")
 
+    cliente_sel = st.multiselect(
+        "Filtrar clientes",
+        options=df["cliente"].dropna().unique(),
+        default=df["cliente"].dropna().unique(),
+        key="cliente_multi"
+    )
+
+    df_cliente = df[df["cliente"].isin(cliente_sel)]
+
     cliente = (
         df.groupby("cliente")
         .size()
@@ -290,15 +308,6 @@ def render():
     )
 
     st.plotly_chart(fig_cliente, use_container_width=True)
-
-    cliente_sel = st.selectbox(
-        "Filtrar por cliente",
-        ["Todos"] + list(cliente["cliente"].unique()),
-        key="cliente_individual"
-    )
-
-    if cliente_sel != "Todos":
-        df = df[df["cliente"] == cliente_sel]
 
     # =========================
     # 🚨 SCORE DE RISCO
