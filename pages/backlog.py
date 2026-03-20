@@ -215,90 +215,111 @@ def render():
         st.plotly_chart(fig_cd, use_container_width=True)
 
     # =========================
-    # 🗺️ ESTADO + 🏙️ CIDADE
+    # 🗺️ ESTADO (COM FILTRO)
     # =========================
-    col1, col2 = st.columns(2)
+    st.subheader("🗺️ Backlog por Estado")
 
-    with col1:
-        st.subheader("🗺️ Backlog por Estado")
+    estado = (
+        df.groupby("estado")
+        .size()
+        .sort_values(ascending=False)
+        .reset_index(name="qtd")
+    )
 
-        estado = df.groupby("estado").size().reset_index(name="qtd")
+    fig_estado = px.bar(
+        estado,
+        x="estado",
+        y="qtd",
+        text="qtd",
+        color_discrete_sequence=[COR_VERDE]
+    )
 
-        fig_estado = px.bar(
-            estado,
-            x="estado",
-            y="qtd",
-            text="qtd",
-            color_discrete_sequence=[COR_VERDE]
-        )
+    st.plotly_chart(fig_estado, use_container_width=True)
 
-        st.plotly_chart(fig_estado, use_container_width=True)
+    estado_sel = st.selectbox(
+        "Filtrar por estado",
+        ["Todos"] + list(estado["estado"].unique()),
+        key="estado_individual"
+    )
 
-    with col2:
-        st.subheader("🏙️ Top Cidades")
-
-        cidade = (
-            df.groupby("cidade")
-            .size()
-            .sort_values(ascending=False)
-            .head(10)
-            .reset_index(name="qtd")
-        )
-
-        fig_cidade = px.bar(
-            cidade,
-            x="cidade",
-            y="qtd",
-            text="qtd",
-            color_discrete_sequence=[COR_CINZA]
-        )
-
-        st.plotly_chart(fig_cidade, use_container_width=True)
+    if estado_sel != "Todos":
+        df = df[df["estado"] == estado_sel]
 
     # =========================
-    # 👤 CLIENTE + RISCO
+    # 🏙️ CIDADE
     # =========================
-    col1, col2 = st.columns(2)
+    st.subheader("🏙️ Top Cidades")
 
-    with col1:
-        st.subheader("👤 Clientes com Maior Backlog")
+    cidade = (
+        df.groupby("cidade")
+        .size()
+        .sort_values(ascending=False)
+        .head(10)
+        .reset_index(name="qtd")
+    )
 
-        cliente = (
-            df.groupby("cliente")
-            .size()
-            .sort_values(ascending=False)
-            .head(10)
-            .reset_index(name="qtd")
+    fig_cidade = px.bar(
+        cidade,
+        x="cidade",
+        y="qtd",
+        text="qtd",
+        color_discrete_sequence=[COR_CINZA]
+    )
+
+    st.plotly_chart(fig_cidade, use_container_width=True)
+
+    # =========================
+    # 👤 CLIENTE (COM FILTRO)
+    # =========================
+    st.subheader("👤 Clientes com Maior Backlog")
+
+    cliente = (
+        df.groupby("cliente")
+        .size()
+        .sort_values(ascending=False)
+        .head(10)
+        .reset_index(name="qtd")
+    )
+
+    fig_cliente = px.bar(
+        cliente,
+        x="cliente",
+        y="qtd",
+        text="qtd",
+        color_discrete_sequence=[COR_VERMELHO]
+    )
+
+    st.plotly_chart(fig_cliente, use_container_width=True)
+
+    cliente_sel = st.selectbox(
+        "Filtrar por cliente",
+        ["Todos"] + list(cliente["cliente"].unique()),
+        key="cliente_individual"
+    )
+
+    if cliente_sel != "Todos":
+        df = df[df["cliente"] == cliente_sel]
+
+    # =========================
+    # 🚨 SCORE DE RISCO
+    # =========================
+    st.subheader("🚨 Score de Risco")
+
+    risco = (
+        df.groupby(["cliente", "pre_entrega"])
+        .agg(
+            qtd=("waybill", "count"),
+            critico=("horas_backlog_snapshot", lambda x: (x > 72).sum())
         )
+        .reset_index()
+    )
 
-        fig_cliente = px.bar(
-            cliente,
-            x="cliente",
-            y="qtd",
-            text="qtd",
-            color_discrete_sequence=[COR_VERMELHO]
-        )
+    risco["perc"] = (risco["critico"] / risco["qtd"]) * 100
 
-        st.plotly_chart(fig_cliente, use_container_width=True)
-
-    with col2:
-        st.subheader("🚨 Score de Risco")
-
-        risco = (
-            df.groupby(["cliente", "pre_entrega"])
-            .agg(
-                qtd=("waybill", "count"),
-                critico=("horas_backlog_snapshot", lambda x: (x > 72).sum())
-            )
-            .reset_index()
-        )
-
-        risco["perc"] = (risco["critico"] / risco["qtd"]) * 100
-
-        st.dataframe(
-            risco.sort_values("perc", ascending=False).head(10),
-            use_container_width=True
-        )
+    st.dataframe(
+        risco.sort_values("perc", ascending=False).head(10),
+        use_container_width=True
+    )
 
     # =========================
     # 🔥 HEATMAP CRÍTICO + TOP
