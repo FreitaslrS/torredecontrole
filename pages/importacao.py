@@ -99,9 +99,6 @@ def render():
             st.warning("Selecione arquivos")
             return
 
-        # 🔥 LIMPA BACKLOG ANTIGO (AQUI ESTÁ O OURO)
-        executar("DELETE FROM pedidos WHERE nome_arquivo = %s")
-
         progress = st.progress(0)
         status_text = st.empty()
 
@@ -143,16 +140,6 @@ def render():
         # ========================
         df_logs = pd.DataFrame(logs)
         salvar_log_importacao(df_logs)
-
-        # ========================
-        # 🔥 REFRESH DAS VIEWS
-        # ========================
-        executar("REFRESH MATERIALIZED VIEW mv_backlog")
-        executar("REFRESH MATERIALIZED VIEW mv_backlog_kpis")
-        executar("REFRESH MATERIALIZED VIEW mv_backlog_estado")
-        executar("REFRESH MATERIALIZED VIEW mv_backlog_cidade")
-        executar("REFRESH MATERIALIZED VIEW mv_backlog_cliente")
-        executar("REFRESH MATERIALIZED VIEW mv_backlog_tempo")
 
         # ========================
         # 🔄 CACHE

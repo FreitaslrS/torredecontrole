@@ -30,6 +30,8 @@ def conectar_duckdb():
 def conectar_postgres():
     return psycopg2.connect(os.getenv("DATABASE_URL"))
 
+def conectar_postgres():
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 # =========================
 # 🔄 CONEXÃO INTELIGENTE
