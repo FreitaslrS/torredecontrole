@@ -5,3 +5,4 @@ openpyxl
 plotly
 pyarrow
 psycopg2-binary
+python-dotenv
