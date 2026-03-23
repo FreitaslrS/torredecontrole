@@ -1,7 +1,7 @@
 streamlit
 pandas
 duckdb
-psycopg2-binary
 openpyxl
 plotly
 pyarrow
+psycopg2-binary

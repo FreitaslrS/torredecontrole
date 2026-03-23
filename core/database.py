@@ -2,11 +2,9 @@ import duckdb
 import psycopg2
 import os
 import pandas as pd
+from dotenv import load_dotenv
 
-# =========================
-# 🔍 DETECTAR AMBIENTE
-# =========================
-USE_POSTGRES = bool(os.getenv("DATABASE_URL"))
+load_dotenv()
 
 # =========================
 # 🧱 DUCKDB (LOCAL)
@@ -20,7 +18,6 @@ def conectar_duckdb():
     os.makedirs(DB_DIR, exist_ok=True)
 
     con = duckdb.connect(DB_PATH)
-
     con.execute("PRAGMA threads=4")
     con.execute("PRAGMA memory_limit='1GB'")
 
@@ -31,14 +28,16 @@ def conectar_duckdb():
 # ☁️ POSTGRES (NEON)
 # =========================
 def conectar_postgres():
-    return psycopg2.connect(os.environ["DATABASE_URL"])
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
 
 
 # =========================
 # 🔄 CONEXÃO INTELIGENTE
 # =========================
 def conectar():
-    if USE_POSTGRES:
+    DATABASE_URL = os.getenv("DATABASE_URL")
+
+    if DATABASE_URL:
         try:
             return conectar_postgres()
         except Exception as e:
@@ -54,12 +53,15 @@ def conectar():
 def executar(query, params=None):
     conn = conectar()
 
-    if USE_POSTGRES:
+    # Postgres
+    if hasattr(conn, "cursor"):
         cur = conn.cursor()
         cur.execute(query, params or ())
         conn.commit()
         cur.close()
         conn.close()
+
+    # DuckDB
     else:
         conn.execute(query, params or ())
 
@@ -70,10 +72,13 @@ def executar(query, params=None):
 def consultar(query, params=None):
     conn = conectar()
 
-    if USE_POSTGRES:
+    # Postgres
+    if hasattr(conn, "cursor"):
         df = pd.read_sql(query, conn, params=params)
         conn.close()
         return df
+
+    # DuckDB
     else:
         return conn.execute(query, params or ()).df()
 

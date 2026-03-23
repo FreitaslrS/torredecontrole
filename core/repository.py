@@ -1,84 +1,82 @@
-from core.database import conectar
+from core.database import consultar, executar, conectar_duckdb
 
 
 # =========================
 # 📦 INSERÇÃO VIA PARQUET (FUTURO)
 # =========================
 def inserir_pedidos_parquet(caminho_parquet):
-    with conectar() as con:
-        con.execute(f"""
-            INSERT INTO pedidos
-            SELECT *
-            FROM read_parquet('{caminho_parquet}') t
-            WHERE NOT EXISTS (
-                SELECT 1 FROM pedidos p
-                WHERE p.waybill = t.waybill
-                AND p.data_referencia = t.data_referencia
-            )
-        """)
+    executar(f"""
+        INSERT INTO pedidos
+        SELECT *
+        FROM read_parquet('{caminho_parquet}') t
+        WHERE NOT EXISTS (
+            SELECT 1 FROM pedidos p
+            WHERE p.waybill = t.waybill
+            AND p.data_referencia = t.data_referencia
+        )
+    """)
 
 
 # =========================
 # 🗑️ DELETAR ARQUIVO
 # =========================
 def deletar_arquivo(nome_arquivo):
-    with conectar() as con:
-        con.execute("""
-            DELETE FROM pedidos
-            WHERE nome_arquivo = ?
-        """, [nome_arquivo])
+    executar(
+        "DELETE FROM pedidos WHERE nome_arquivo = %s",
+        [nome_arquivo]
+    )
 
 
 # =========================
 # 📄 LISTAR ARQUIVOS
 # =========================
 def listar_arquivos():
-    with conectar() as con:
-        return con.execute("""
-            SELECT nome_arquivo, COUNT(*) as registros
-            FROM pedidos
-            GROUP BY nome_arquivo
-            ORDER BY nome_arquivo DESC
-        """).df()
+    return consultar("""
+        SELECT nome_arquivo, COUNT(*) as registros
+        FROM pedidos
+        GROUP BY nome_arquivo
+        ORDER BY nome_arquivo DESC
+    """)
 
 
 # =========================
 # 📊 BUSCAR TODOS PEDIDOS
 # =========================
 def buscar_pedidos():
-    with conectar() as con:
-        return con.execute("""
-            SELECT *
-            FROM pedidos
-        """).df()
+    return consultar("""
+        SELECT *
+        FROM pedidos
+    """)
 
 
 # =========================
-# 🔥 BACKLOG ATUAL (NOVO)
+# 🔥 BACKLOG ATUAL
 # =========================
 def buscar_backlog_atual():
-    with conectar() as con:
-        return con.execute("""
-            SELECT *
-            FROM backlog_atual
-        """).df()
+    return consultar("""
+        SELECT *
+        FROM backlog_atual
+    """)
 
 
 # =========================
 # 📈 BACKLOG POR PERÍODO
 # =========================
 def buscar_backlog_periodo(data_inicio, data_fim):
-    with conectar() as con:
-        return con.execute("""
-            SELECT *
-            FROM pedidos
-            WHERE data_referencia BETWEEN ? AND ?
-            AND horas_backlog_snapshot IS NOT NULL
-        """, [data_inicio, data_fim]).df()
-    
+    return consultar("""
+        SELECT *
+        FROM pedidos
+        WHERE data_referencia BETWEEN %s AND %s
+        AND horas_backlog_snapshot IS NOT NULL
+    """, [data_inicio, data_fim])
+
+
+# =========================
+# 🧾 LOG DE IMPORTAÇÃO
+# =========================
 def salvar_log_importacao(logs):
-    from core.database import conectar
-    con = conectar()
+    # 🔥 mantém DuckDB só pra esse caso (rápido e compatível)
+    con = conectar_duckdb()
 
     con.register("logs_temp", logs)
 
