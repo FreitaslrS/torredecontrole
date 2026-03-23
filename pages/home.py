@@ -2,7 +2,7 @@ import streamlit as st
 from core.repository import buscar_pedidos
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def carregar():
     return buscar_pedidos()
 

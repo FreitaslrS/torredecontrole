@@ -3,6 +3,11 @@ import plotly.express as px
 
 from core.repository import buscar_backlog_periodo
 
+@st.cache_data(ttl=120)
+def carregar_backlog(data_inicio, data_fim):
+    from core.repository import buscar_backlog_periodo
+    return buscar_backlog_periodo(data_inicio, data_fim)
+
 # =========================
 # 🎨 CORES EMPRESA
 # =========================
@@ -36,7 +41,9 @@ def render():
         st.warning("Selecione o período")
         return
 
-    df = buscar_backlog_periodo(data_inicio, data_fim)
+    from core.repository import buscar_backlog_fast
+
+    df = buscar_backlog_fast(data_inicio, data_fim)
 
     if df.empty:
         st.warning("Sem dados")
