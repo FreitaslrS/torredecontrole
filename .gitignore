@@ -1,8 +1,14 @@
-__pycache__/
-*.pyc
-*.db
-.env
-.venv
+# ambiente
+.venv/
 venv/
-data/
-uploads/
+
+# banco de dados
+*.db
+*.duckdb
+
+# arquivos grandes
+*.xlsx
+*.csv
+
+# cache
+__pycache__/
