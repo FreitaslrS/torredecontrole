@@ -2,7 +2,7 @@ import streamlit as st
 from core.repository import buscar_produtividade
 
 def render():
-    st.title("⚡ Produtividade")
+    st.markdown("## <i class='fas fa-bolt'></i> Produtividade", unsafe_allow_html=True)
 
     df = buscar_produtividade()
 

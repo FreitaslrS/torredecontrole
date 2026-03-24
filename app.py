@@ -3,7 +3,6 @@ from core.database import inicializar_banco
 
 inicializar_banco()
 
-# IMPORTS DAS PÁGINAS
 import pages.home as home
 import pages.backlog as backlog
 import pages.backlog_historico as backlog_historico
@@ -11,29 +10,24 @@ import pages.produtividade as produtividade
 import pages.devolucoes as devolucoes
 import pages.importacao as importacao
 
-def load_css():
-    with open("assets/style.css") as f:
+def load_css_dark():
+    with open("assets/style_dark.css") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-load_css()
+def load_css_light():
+    with open("assets/style_light.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-COR_PRIMARIA = "#16A34A"   # verde
-COR_ALERTA = "#DC2626"     # vermelho
-COR_NEUTRA = "#6B7280"     # cinza
-COR_BACKGROUND = "#0F172A" # fundo escuro
+st.set_page_config(page_title="Control Tower", layout="wide")
 
-# =========================
-# ⚙️ CONFIG
-# =========================
-st.set_page_config(
-    page_title="Control Tower",
-    page_icon="📦",
-    layout="wide"
-)
+# 🔥 toggle de tema
+tema = st.sidebar.toggle("🌙 Dark Mode", value=True)
 
-# =========================
-# 🎨 SIDEBAR PROFISSIONAL
-# =========================
+if tema:
+    load_css_dark()
+else:
+    load_css_light()
+
 st.sidebar.markdown("## 📊 Control Tower")
 st.sidebar.markdown("---")
 
@@ -49,26 +43,15 @@ menu = st.sidebar.radio(
     ]
 )
 
-st.sidebar.markdown("---")
-st.sidebar.caption("© Samuel Freitas Analytics ")
-
-# =========================
-# 🎯 ROTEAMENTO
-# =========================
 if menu == "🏠 Home":
     home.render()
-
 elif menu == "📦 Backlog Atual":
     backlog.render()
-
 elif menu == "📊 Backlog Histórico":
     backlog_historico.render()
-
 elif menu == "⚡ Produtividade":
     produtividade.render()
-
 elif menu == "🔁 Devoluções":
     devolucoes.render()
-
 elif menu == "📥 Importação":
     importacao.render()

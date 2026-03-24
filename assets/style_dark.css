@@ -1,0 +1,32 @@
+/* ===== FUNDO GLOBAL ===== */
+html,
+body,
+.stApp {
+    background-color: #0b0f19;
+}
+
+/* ===== CONTAINER PRINCIPAL ===== */
+div[data-testid="stAppViewContainer"] {
+    background-color: #0b0f19;
+}
+
+/* ===== AREA CENTRAL ===== */
+div[data-testid="stMain"] {
+    background-color: #0b0f19;
+}
+
+/* ===== SIDEBAR ===== */
+section[data-testid="stSidebar"] {
+    background-color: #05070d;
+    border-right: 1px solid #1f2937;
+}
+
+/* ===== REMOVE FUNDO BRANCO BUGADO ===== */
+.block-container {
+    background-color: transparent;
+}
+
+/* remove fundo branco de containers internos */
+div[data-testid="stVerticalBlock"] {
+    background-color: transparent;
+}

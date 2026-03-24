@@ -3,7 +3,7 @@ from core.repository import buscar_pedidos
 
 
 def render():
-    st.title("🔁 Devoluções")
+    st.markdown("## <i class='fas fa-undo'></i> Devoluções", unsafe_allow_html=True)
 
     df = buscar_pedidos(2000)
 

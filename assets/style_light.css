@@ -1,0 +1,30 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap");
+
+html,
+body,
+[class*="css"] {
+    font-family: "Inter", sans-serif;
+}
+
+body {
+    background: #f9fafb;
+}
+
+h1,
+h2,
+h3 {
+    color: #111827;
+}
+
+p,
+span,
+label {
+    color: #374151;
+}
+
+.card {
+    padding: 20px;
+    border-radius: 16px;
+    background: white;
+    border: 1px solid #e5e7eb;
+}

@@ -81,7 +81,7 @@ def render():
     if not verificar_senha():
         return
 
-    st.title("📥 Importar Planilhas")
+    st.markdown("## <i class='fas fa-upload'></i> Importação de Dados", unsafe_allow_html=True)
 
     data_ref = st.date_input("Data de referência")
 

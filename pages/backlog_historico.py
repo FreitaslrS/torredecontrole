@@ -6,9 +6,9 @@ from core.repository import buscar_backlog_historico
 def render():
 
     st.markdown("""
-    # 📊 Backlog Histórico
-    ### Evolução do backlog ao longo do tempo
-    """)
+    ## <i class='fas fa-chart-line'></i> Backlog Histórico
+    <p style='opacity:0.7'>Evolução do backlog ao longo do tempo</p>
+    """, unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
 

@@ -11,9 +11,9 @@ COR_CINZA = "#6B7280"
 def render():
 
     st.markdown("""
-    # 📦 Backlog Atual
-    ### Monitoramento em tempo real da operação
-    """)
+    ## <i class='fas fa-box'></i> Backlog Atual
+    <p style='opacity:0.7'>Monitoramento em tempo real da operação</p>
+    """, unsafe_allow_html=True)
 
     df = buscar_backlog_atual()
 
