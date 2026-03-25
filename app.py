@@ -43,31 +43,30 @@ else:
     load_css_light()
 
 # ===== SIDEBAR =====
-st.sidebar.markdown("## 📊 Control Tower")
 st.sidebar.markdown("---")
 
 menu = st.sidebar.radio(
-    "Navegação",
+    "Navegação / 导航",
     [
-        "🏠 Home",
-        "📦 Backlog Atual",
-        "📊 Backlog Histórico",
-        "⚡ Produtividade",
-        "🔁 Devoluções",
-        "📥 Importação"
+        "🏠 Home / 首页",
+        "📦 Backlog Atual / 当前积压",
+        "📊 Backlog Histórico / 历史积压",
+        "⚡ Produtividade / 生产效率",
+        "🔁 Devoluções / 退货",
+        "📥 Importação / 数据导入"
     ]
 )
 
 # ===== ROTEAMENTO =====
-if menu == "🏠 Home":
+if menu == "🏠 Home / 首页":
     home.render()
-elif menu == "📦 Backlog Atual":
+elif menu == "📦 Backlog Atual / 当前积压":
     backlog.render()
-elif menu == "📊 Backlog Histórico":
+elif menu == "📊 Backlog Histórico / 历史积压":
     backlog_historico.render()
-elif menu == "⚡ Produtividade":
+elif menu == "⚡ Produtividade / 生产效率":
     produtividade.render()
-elif menu == "🔁 Devoluções":
+elif menu == "🔁 Devoluções / 退货":
     devolucoes.render()
-elif menu == "📥 Importação":
+elif menu == "📥 Importação / 数据导入":
     importacao.render()

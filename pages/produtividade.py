@@ -2,7 +2,7 @@ import streamlit as st
 from core.repository import buscar_produtividade
 
 def render():
-    st.markdown("## <i class='fas fa-bolt'></i> Produtividade", unsafe_allow_html=True)
+    st.markdown("## <i class='fas fa-bolt'></i> Produtividade / 生产效率", unsafe_allow_html=True)
 
     df = buscar_produtividade()
 
@@ -12,10 +12,10 @@ def render():
 
     total = df["volumes"].sum()
 
-    st.metric("📦 Total processado", total)
+    st.metric("📦 Total processado / 处理总量", total)
 
     # PRODUTIVIDADE POR OPERADOR
-    st.subheader("👤 Produtividade por Operador")
+    st.subheader("👤 Produtividade por Operador / 按操作员效率")
 
     df_op = df.groupby("operador")["volumes"].sum().reset_index()
 
@@ -31,7 +31,7 @@ def render():
     st.plotly_chart(fig, use_container_width=True)
 
     # POR HUB
-    st.subheader("🏭 Produtividade por HUB")
+    st.subheader("🏭 Produtividade por HUB / 按分拨中心效率")
 
     df_hub = df.groupby("hub")["volumes"].sum().reset_index()
 

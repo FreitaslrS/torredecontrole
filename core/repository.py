@@ -20,7 +20,7 @@ def deletar_arquivo(nome_arquivo):
 def listar_arquivos():
     return consultar("""
         SELECT 
-            nome_arquivo, 
+            nome_arquivo,
             COUNT(*) as registros
         FROM pedidos
         GROUP BY nome_arquivo
@@ -29,7 +29,7 @@ def listar_arquivos():
 
 
 # =========================
-# 📊 BACKLOG RESUMO (RÁPIDO)
+# 📊 BACKLOG RESUMO (KPI)
 # =========================
 @st.cache_data(ttl=300)
 def buscar_backlog_resumo():
@@ -48,7 +48,75 @@ def buscar_backlog_resumo():
 
 
 # =========================
-# 📊 BACKLOG DETALHADO (PAGINADO + FILTRO)
+# 📊 GRÁFICO POR ESTADO
+# =========================
+@st.cache_data(ttl=120)
+def buscar_backlog_por_estado(remover_estados=None, clientes=None):
+
+    query = """
+        SELECT estado, COUNT(*) as qtd
+        FROM backlog_atual
+        WHERE 1=1
+    """
+
+    params = []
+
+    if remover_estados:
+        query += " AND estado != ALL(%s)"
+        params.append(remover_estados)
+
+    if clientes:
+        query += " AND cliente = ANY(%s)"
+        params.append(clientes)
+
+    query += " GROUP BY estado ORDER BY qtd DESC"
+
+    return consultar(query, params)
+
+
+# =========================
+# 📊 GRÁFICO POR CLIENTE
+# =========================
+@st.cache_data(ttl=120)
+def buscar_backlog_por_cliente(remover_clientes=None, estados=None):
+
+    query = """
+        SELECT cliente, COUNT(*) as qtd
+        FROM backlog_atual
+        WHERE 1=1
+    """
+
+    params = []
+
+    if remover_clientes:
+        query += " AND cliente != ALL(%s)"
+        params.append(remover_clientes)
+
+    if estados:
+        query += " AND estado = ANY(%s)"
+        params.append(estados)
+
+    query += " GROUP BY cliente ORDER BY qtd DESC"
+
+    return consultar(query, params)
+
+
+# =========================
+# 🏆 TOP 10 PRÉ-ENTREGA
+# =========================
+@st.cache_data(ttl=120)
+def buscar_top10_pre_entrega():
+    return consultar("""
+        SELECT pre_entrega, COUNT(*) as qtd
+        FROM backlog_atual
+        GROUP BY pre_entrega
+        ORDER BY qtd DESC
+        LIMIT 10
+    """)
+
+
+# =========================
+# 📊 BACKLOG DETALHADO
 # =========================
 @st.cache_data(ttl=120)
 def buscar_backlog_paginado(limit=100, offset=0, estados=None, clientes=None, faixa=None):
@@ -69,17 +137,14 @@ def buscar_backlog_paginado(limit=100, offset=0, estados=None, clientes=None, fa
 
     params = []
 
-    # 🔥 FILTRO ESTADO
     if estados:
         query += " AND estado = ANY(%s)"
         params.append(estados)
 
-    # 🔥 FILTRO CLIENTE
     if clientes:
         query += " AND cliente = ANY(%s)"
         params.append(clientes)
 
-    # 🔥 FILTRO FAIXA
     if faixa == "24h+":
         query += " AND horas_backlog_snapshot > 24"
     elif faixa == "48h+":
@@ -94,7 +159,7 @@ def buscar_backlog_paginado(limit=100, offset=0, estados=None, clientes=None, fa
 
 
 # =========================
-# 🔢 CONTAGEM (COM FILTRO)
+# 🔢 CONTAGEM BACKLOG
 # =========================
 @st.cache_data(ttl=120)
 def contar_backlog(estados=None, clientes=None, faixa=None):
@@ -123,20 +188,18 @@ def contar_backlog(estados=None, clientes=None, faixa=None):
 # =========================
 # 📊 BACKLOG HISTÓRICO
 # =========================
-@st.cache_data(ttl=600)
 def buscar_backlog_historico(data_inicio, data_fim):
     return consultar("""
         SELECT 
             data_referencia,
             estado,
             pre_entrega,
-            COUNT(*) as qtd
+            cliente,
+            horas_backlog_snapshot
         FROM pedidos
         WHERE status = 'backlog'
         AND data_referencia BETWEEN %s AND %s
-        GROUP BY data_referencia, estado, pre_entrega
     """, [data_inicio, data_fim])
-
 
 # =========================
 # 📊 PRODUTIVIDADE
@@ -155,11 +218,11 @@ def buscar_produtividade():
 
 
 # =========================
-# 📦 PEDIDOS (DEVOLUÇÕES)
+# 📦 PEDIDOS
 # =========================
 @st.cache_data(ttl=120)
 def buscar_pedidos(limit=1000):
-    return consultar(f"""
+    return consultar("""
         SELECT 
             waybill,
             cliente,
@@ -170,18 +233,20 @@ def buscar_pedidos(limit=1000):
             data_referencia
         FROM pedidos
         ORDER BY data_referencia DESC
-        LIMIT {limit}
-    """)
+        LIMIT %s
+    """, [limit])
 
 
 # =========================
 # 💾 LOG IMPORTAÇÃO
 # =========================
 def salvar_log_importacao(logs_df):
+
     if logs_df.empty:
         return
 
     from core.database import conectar
+
     conn = conectar()
     cur = conn.cursor()
 

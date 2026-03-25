@@ -27,11 +27,11 @@ def verificar_senha():
     if st.session_state.autenticado:
         return True
 
-    st.title("🔐 Área Restrita")
+    st.title("🔐 Área Restrita / 受限区域")
 
-    senha = st.text_input("Digite a senha", type="password")
+    senha = st.text_input("Digite a senha / 输入密码", type="password")
 
-    if st.button("Entrar"):
+    if st.button("Entrar / 登录"):
         if senha == obter_senha():
             st.session_state.autenticado = True
             st.rerun()
@@ -81,12 +81,12 @@ def render():
     if not verificar_senha():
         return
 
-    st.markdown("## <i class='fas fa-upload'></i> Importação de Dados", unsafe_allow_html=True)
+    st.markdown("## <i class='fas fa-upload'></i> Importação de Dados / 数据导入", unsafe_allow_html=True)
 
-    data_ref = st.date_input("Data de referência")
+    data_ref = st.date_input("Data de referência / 参考日期")
 
     arquivos = st.file_uploader(
-        "Selecione arquivos Excel",
+        "Selecione arquivos Excel / 选择Excel文件",
         type=["xlsx", "xls"],
         accept_multiple_files=True
     )
@@ -99,14 +99,14 @@ def render():
     # 🚀 ESCOLHA DO TIPO DE ARQUIVO
     # ================================
     tipo_importacao = st.selectbox(
-        "Tipo de Importação",
+        "Tipo de Importação / 导入类型",
         ["Backlog", "Produtividade"]
     )
 
     # ========================
     # 🚀 IMPORTAR
     # ========================
-    if st.button("Importar"):
+    if st.button("Importar / 导入"):
 
         if tipo_importacao == "Backlog" and not data_ref:
             st.warning("Selecione a data de referência")
@@ -186,7 +186,7 @@ def render():
     # ========================
     # 📜 HISTÓRICO
     # ========================
-    st.subheader("📊 Histórico de Importações")
+    st.subheader("📊 Histórico de Importações / 导入历史")
 
     from core.database import consultar
 
@@ -202,7 +202,7 @@ def render():
     """)
 
     if df_hist.empty:
-        st.info("Nenhum arquivo importado ainda")
+        st.info("Nenhum arquivo importado ainda / 暂无导入记录")
     else:
         for _, row in df_hist.iterrows():
             col1, col2, col3, col4, col5 = st.columns([4,2,3,3,1])
