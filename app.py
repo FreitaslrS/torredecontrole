@@ -35,7 +35,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🔥 DARK MODE (toggle)
-tema = st.sidebar.toggle("🌙 Dark Mode", value=True)
+if "tema" not in st.session_state:
+    st.session_state.tema = False
+
+tema = st.sidebar.toggle("🌙 Dark Mode", value=st.session_state.tema)
+st.session_state.tema = tema
 
 if tema:
     load_css_dark()

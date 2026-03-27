@@ -3,6 +3,41 @@ from datetime import datetime
 from psycopg2.extras import execute_values
 from core.database import conectar_postgres, executar, consultar
 
+import requests
+
+def enviar_telegram(msg):
+    TOKEN = 'SEU_TOKEN_AQUI'
+    CHAT_ID = 'SEU_CHAT_ID_AQUI'
+
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+
+    requests.post(url, data={
+        'chat_id': CHAT_ID,
+        'text': msg
+    })
+
+    enviar_telegram(f"""
+    🚀 Automação Anjun Executada
+
+    📅 Data: {ontem}
+    📦 Total: {vol_total}
+    🟢 T1: {prod_turnos.get('T1', 0)}
+    🟡 T2: {prod_turnos.get('T2', 0)}
+    🔴 T3: {prod_turnos.get('T3', 0)}
+    """)
+
+    import tkinter as tk
+
+    def executar():
+        os.system("Automacao_Anjun.exe")
+
+    janela = tk.Tk()
+    janela.title("Automação Anjun")
+
+    botao = tk.Button(janela, text="Executar", command=executar)
+    botao.pack(padx=50, pady=30)
+
+    janela.mainloop()
 
 COLUNAS_MAPEAMENTO = {
     "waybill": ["waybill", "awb", "pedido"],
@@ -283,3 +318,19 @@ def importar_produtividade(arquivo):
     conn.close()
 
     return len(df)
+
+def log(msg):
+    with open("log.txt", "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now()} - {msg}\n")
+
+    log("Iniciando automação")
+    log(f"Arquivo lido: {arquivo_recente}")
+    log("Finalizado com sucesso")
+
+def pausar(msg="Finalizando..."):
+    print(msg)
+    try:
+        input("\nPressione ENTER para fechar...")
+    except:
+        import time
+        time.sleep(3)
