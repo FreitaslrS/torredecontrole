@@ -136,3 +136,23 @@ def inicializar_banco():
             data_importacao TIMESTAMP
         )
     """)
+
+def conectar_devolucoes():
+    return psycopg2.connect(
+        os.getenv("DATABASE_URL_DEVOLUCOES"),
+        sslmode="require"
+    )
+
+def consultar_devolucoes(query, params=None):
+    conn = conectar_devolucoes()
+    df = pd.read_sql(query, conn, params=params)
+    conn.close()
+    return df
+
+def executar_devolucoes(query, params=None):
+    conn = conectar_devolucoes()
+    cur = conn.cursor()
+    cur.execute(query, params or ())
+    conn.commit()
+    cur.close()
+    conn.close()
