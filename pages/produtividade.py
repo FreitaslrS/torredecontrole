@@ -11,6 +11,8 @@ COR_VERDE = "#16A34A"
 COR_VERMELHO = "#DC2626"
 COR_CINZA = "#6B7280"
 
+cores_empresa = [COR_VERDE, COR_VERMELHO, COR_CINZA]
+
 color_dispositivo = {
     "Sorter Oval": COR_VERDE,
     "Sorter Linear": COR_VERMELHO,
@@ -35,7 +37,7 @@ map_traducao = {
 @st.cache_data(ttl=300)
 def carregar_dados():
     df = buscar_produtividade()
-    return df[["data", "hora", "dispositivo", "volumes"]].copy()
+    return df[["data", "hora", "dispositivo", "cliente", "volumes"]].copy()
 
 @st.cache_data(ttl=300)
 def preparar_dados(df):
@@ -55,6 +57,19 @@ def agrupar(df):
     df_bar = df.groupby(["hora", "dispositivo"])["volumes"].sum().reset_index()
     df_tabela = df.groupby(["hora", "dispositivo"])["volumes"].sum().unstack(fill_value=0)
     return df_turno, df_bar, df_tabela
+
+@st.cache_data(ttl=300)
+def agrupar_cliente(df):
+    df_cliente = (
+        df.groupby("cliente")["volumes"]
+        .sum()
+        .reset_index()
+        .sort_values(by="volumes", ascending=False)
+    )
+    
+    df_top10 = df_cliente.head(10)
+
+    return df_cliente, df_top10
 
 # =========================
 # 🚀 RENDER
@@ -170,3 +185,43 @@ def render():
     df_tabela.columns = df_tabela.columns.map(lambda x: map_traducao.get(x, x))
 
     st.dataframe(df_tabela, use_container_width=True)
+
+    # =========================
+    # 🧑‍💼 PRODUTIVIDADE POR CLIENTE
+    # =========================
+    st.subheader("🧑‍💼 Top 10 Clientes / 前10客户")
+
+    df_cliente, df_top10 = agrupar_cliente(df)
+
+    fig_cliente = px.bar(
+        df_top10,
+        x="volumes",
+        y="cliente",
+        orientation="h",
+        text="volumes"
+    )
+
+    # 🔥 aplica cores da empresa (cíclico)
+    fig_cliente.update_traces(
+        marker_color=[cores_empresa[i % 3] for i in range(len(df_top10))]
+    )
+
+    fig_cliente.update_layout(
+        xaxis_title="Volumes / 数量",
+        yaxis_title="Cliente / 客户"
+    )
+
+    fig_cliente.update_traces(textposition="outside")
+
+    st.plotly_chart(fig_cliente, use_container_width=True)
+
+    # =========================
+    # 📋 TABELA CLIENTES
+    # =========================
+    st.subheader("📋 Produção por Cliente (Completo) / 客户完整列表")
+
+    df_cliente_formatado = df_cliente.copy()
+    df_cliente_formatado.columns = ["Cliente / 客户", "Volumes / 数量"]
+
+    st.dataframe(df_cliente_formatado, use_container_width=True)
+    

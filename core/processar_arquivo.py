@@ -132,6 +132,9 @@ def preparar_dados(arquivo, data_referencia):
     # ⏱️ TEMPO
     dados["base_tempo"] = dados.apply(calcular_base_tempo, axis=1)
 
+    # 🔥 CORREÇÃO
+    dados = dados[dados["base_tempo"].notna()]
+
     dados["horas_backlog_snapshot"] = (
         (agora - dados["base_tempo"]).dt.total_seconds() / 3600
     )
@@ -292,16 +295,13 @@ def importar_produtividade(arquivo):
     import pandas as pd
     from datetime import datetime
 
+    # 🔥 LEITURA
     df = pd.read_excel(arquivo)
 
     if df.empty:
         return 0
-    
-    df["data_referencia"] = df["data"]
 
-    # =========================
-    # 🧠 RENOMEAR COLUNAS
-    # =========================
+    # 🔥 RENOMEAR
     df = df.rename(columns={
         "客户名称(Nome do Cliente)": "cliente",
         "操作时间(tempo de operação)": "data_hora",
@@ -310,10 +310,125 @@ def importar_produtividade(arquivo):
         "操作人(Operador)": "operador"
     })
 
+    # 🔥 GARANTIR COLUNAS
+    df["cliente"] = df.get("cliente", "Desconhecido")
+    df["estado"] = df.get("estado", "Desconhecido")
+    df["hub"] = df.get("hub", "Desconhecido")
+    df["operador"] = df.get("operador", "Desconhecido")
+
+    # 🔥 LIMPEZA
+    df["operador"] = (
+        df["operador"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    df["data_hora"] = pd.to_datetime(df[col_data_hora], errors="coerce")
+    df["hora"] = df["data_hora"].dt.hour
+    df["data"] = df["data_hora"].dt.date
+
+    # 🔥 CLASSIFICAÇÃO
+    def classificar_dispositivo(op):
+        if "PERUS01" in op:
+            return "Sorter Oval"
+        elif "PERUS02" in op:
+            return "Sorter Linear"
+        else:
+            return "Cubometro"
+
+    df["dispositivo"] = df["operador"].apply(classificar_dispositivo)
+
+    # 🔥 VOLUME
+    df["volumes"] = 1
+
+    # 🔥 CONTROLE
+    df["data_importacao"] = datetime.now()
+    df["nome_arquivo"] = arquivo.name
+
+    # 🔥 BANCO
+    from psycopg2.extras import execute_values
+    from core.database import conectar_operacional
+
+    conn = conectar_operacional()
+    cur = conn.cursor()
+
+    cur.execute("DELETE FROM produtividade WHERE nome_arquivo = %s", [arquivo.name])
+
+    colunas = [
+        "cliente", "estado", "hub", "operador",
+        "data", "hora", "dispositivo",
+        "volumes", "nome_arquivo", "data_importacao"
+    ]
+
+    values = [
+        tuple(None if pd.isna(v) else v for v in row)
+        for row in df[colunas].itertuples(index=False, name=None)
+    ]
+
+    execute_values(
+        cur,
+        f"INSERT INTO produtividade ({','.join(colunas)}) VALUES %s",
+        values
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return len(df)
+    
+    # =========================
+    # 🧠 MAPEAR COLUNAS (NOVO)
+    # =========================
+    df["cliente"] = df.get("cliente", "Desconhecido")
+    df["estado"] = df.get("estado", "Desconhecido")
+    df["hub"] = df.get("hub", "Desconhecido")
+    df["operador"] = df.get("operador", "Desconhecido")
+    df["data_hora"] = pd.to_datetime(df.get("data_hora"), errors="coerce")
+
+    df = pd.read_excel(arquivo)
+
+    # 🔥 RENOMEAR COLUNAS
+    df = df.rename(columns={
+        "客户名称(Nome do Cliente)": "cliente",
+        "操作时间(tempo de operação)": "data_hora",
+        "收件人州(Estado do destinatário)": "estado",
+        "预派送网点(Ponto de Pré-entrega)": "hub",
+        "操作人(Operador)": "operador"
+    })
+
+    if df.empty:
+        return 0
+
+    # 🔥 GARANTIR COLUNAS
+    df["cliente"] = df.get("cliente", "Desconhecido")
+    df["estado"] = df.get("estado", "Desconhecido")
+    df["hub"] = df.get("hub", "Desconhecido")
+    df["operador"] = df.get("operador", "Desconhecido")
+
+    # 🔥 LIMPEZA PESADA (IMPORTANTE)
+    df["operador"] = (
+        df["operador"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    df["data_hora"] = pd.to_datetime(df.get("data_hora"), errors="coerce")
+    df["hora"] = df["data_hora"].dt.hour
+    df["data"] = df["data_hora"].dt.date
+
+    # =========================
+    # ⏱️ DATA / HORA (CORRIGIDO)
+    # =========================
+    df["data_hora"] = pd.to_datetime(df["data_hora"], errors="coerce")
+    df["hora"] = df["data_hora"].dt.hour
+    df["data"] = df["data_hora"].dt.date
+
     # =========================
     # 🧹 LIMPEZA
     # =========================
-    df["operador"] = df["operador"].str.strip()
 
     excluir = ["devolucao01", "devolucao02", "devolucao03", "MG01"]
     df = df[~df["operador"].isin(excluir)]
@@ -338,9 +453,11 @@ def importar_produtividade(arquivo):
     # ⚙️ DISPOSITIVO
     # =========================
     def classificar_dispositivo(op):
-        if op == "Perus01":
+        op = str(op).strip().upper()
+
+        if "PERUS01" in op:
             return "Sorter Oval"
-        elif op == "Perus02":
+        elif "PERUS02" in op:
             return "Sorter Linear"
         else:
             return "Cubometro"
