@@ -81,7 +81,7 @@ def render():
 
     faixa = st.selectbox(
         "Filtro de Backlog",
-        ["Todos", "24h+", "48h+", "72h+"]
+        ["Todos", "0-24h", "24-48h", "48-72h", "72h+"]
     )
 
     # =========================

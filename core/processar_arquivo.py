@@ -56,7 +56,9 @@ COLUNAS_MAPEAMENTO = {
     "entrada_hub2": ["entrada no centro nível 02"],
     "saida_hub2": ["saída do centro nível 02"],
     "entrada_hub3": ["entrada no centro nível 03"],
-    "saida_hub3": ["saída do centro nível 03"]
+    "saida_hub3": ["saída do centro nível 03"],
+    "data_inbound_ponto": ["网点入库时间", "tempo de inbound"],
+    "data_entrega": ["签收时间", "tempo de assinatura"]
 }
 
 
@@ -96,13 +98,7 @@ def limpar_base():
     """)
 
 def calcular_base_tempo(row):
-    if pd.notna(row["entrada_hub3"]) and pd.isna(row["saida_hub3"]):
-        return row["entrada_hub3"]
-    elif pd.notna(row["entrada_hub2"]) and pd.isna(row["saida_hub2"]):
-        return row["entrada_hub2"]
-    elif pd.notna(row["entrada_hub1"]) and pd.isna(row["saida_hub1"]):
-        return row["entrada_hub1"]
-    return None
+    return row["entrada_hub1"]
 
 
 def preparar_dados(arquivo, data_referencia):
@@ -118,7 +114,9 @@ def preparar_dados(arquivo, data_referencia):
     for col in [
         "entrada_hub1","saida_hub1",
         "entrada_hub2","saida_hub2",
-        "entrada_hub3","saida_hub3"
+        "entrada_hub3","saida_hub3",
+        "data_inbound_ponto",   # 🔥 NOVO
+        "data_entrega"          # 🔥 NOVO
     ]:
         dados[col] = pd.to_datetime(dados[col], errors="coerce")
 
@@ -129,13 +127,35 @@ def preparar_dados(arquivo, data_referencia):
 
     # 🔥 BACKLOG REAL
     mask = (
-        (dados["entrada_hub3"].notna() & dados["saida_hub3"].isna()) |
-        (dados["entrada_hub2"].notna() & dados["saida_hub2"].isna()) |
-        (dados["entrada_hub1"].notna() & dados["saida_hub1"].isna())
+        dados["entrada_hub1"].notna() &
+        dados["entrada_hub2"].isna() &
+        dados["entrada_hub3"].isna() &
+        dados["saida_hub1"].isna() &
+        dados["saida_hub2"].isna() &
+        dados["saida_hub3"].isna() &
+        dados["data_entrega"].isna()   # 🔥 NOVO
     )
 
     dados["status"] = "finalizado"
     dados.loc[mask, "status"] = "backlog"
+
+    def classificar_status_avancado(row):
+
+        if pd.notna(row["data_entrega"]):
+            return "Entregue"
+
+        if pd.notna(row["entrada_hub3"]):
+            return "Hub 3"
+
+        if pd.notna(row["entrada_hub2"]):
+            return "Hub 2"
+
+        if pd.notna(row["entrada_hub1"]):
+            return "Hub 1"
+
+        return "Sem entrada"
+
+    dados["status_etapa"] = dados.apply(classificar_status_avancado, axis=1)
 
     # ⏱️ TEMPO
     dados["base_tempo"] = dados.apply(calcular_base_tempo, axis=1)
@@ -158,6 +178,51 @@ def preparar_dados(arquivo, data_referencia):
 
     return dados
 
+def validar_backlog(df):
+
+    erros = []
+
+    # ❌ HUB 2 sem HUB 1
+    erro_hub2 = df[
+        df["entrada_hub2"].notna() &
+        df["entrada_hub1"].isna()
+    ]
+    if not erro_hub2.empty:
+        erros.append(f"HUB2 sem HUB1: {len(erro_hub2)}")
+
+    # ❌ HUB 3 sem HUB 2
+    erro_hub3 = df[
+        df["entrada_hub3"].notna() &
+        df["entrada_hub2"].isna()
+    ]
+    if not erro_hub3.empty:
+        erros.append(f"HUB3 sem HUB2: {len(erro_hub3)}")
+
+    # ❌ saída sem entrada
+    erro_saida = df[
+        df["saida_hub1"].notna() &
+        df["entrada_hub1"].isna()
+    ]
+    if not erro_saida.empty:
+        erros.append(f"Saída sem entrada: {len(erro_saida)}")
+
+    # ❌ horas negativas
+    erro_tempo = df[df["horas_backlog_snapshot"] < 0]
+    if not erro_tempo.empty:
+        erros.append(f"Tempo negativo: {len(erro_tempo)}")
+
+    erro_backlog = df[
+        (df["status"] == "backlog") &
+        (
+            df["entrada_hub2"].notna() |
+            df["entrada_hub3"].notna()
+        )
+    ]
+
+    if not erro_backlog.empty:
+        erros.append(f"Backlog inválido (já avançou): {len(erro_backlog)}")
+
+    return erros
 
 def inserir_em_massa(df):
     conn = conectar_historico()
@@ -176,6 +241,9 @@ def inserir_em_massa(df):
         "saida_hub2",
         "entrada_hub3",
         "saida_hub3",
+        "data_inbound_ponto",
+        "data_entrega",
+        "status_etapa",
         "nome_arquivo",
         "data_referencia",
         "data_importacao",
@@ -213,8 +281,20 @@ def importar_excel(arquivo, data_referencia):
     if dados.empty:
         return 0
 
-    # 🔥 só backlog
-    dados_backlog = dados[dados["status"] == "backlog"]
+    # ✅ valida
+    erros = validar_backlog(dados)
+
+    if erros:
+        print("🚨 ERROS ENCONTRADOS:")
+        for e in erros:
+            print(e)
+
+    
+
+    # ✅ filtra backlog
+    dados = dados[dados["status"] == "backlog"]
+
+    # ✅ remove duplicados
     dados = dados.drop_duplicates(subset=["waybill"])
 
     if dados.empty:
