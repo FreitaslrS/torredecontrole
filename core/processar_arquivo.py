@@ -80,6 +80,14 @@ def classificar_faixa(h):
     else:
         return "72h+"
 
+def ajustar_data_operacional(data_hora):
+    if pd.isna(data_hora):
+        return None
+    
+    if data_hora.hour < 5 or (data_hora.hour == 5 and data_hora.minute < 30):
+        return (data_hora - pd.Timedelta(days=1)).date()
+    else:
+        return data_hora.date()
 
 def limpar_base():
     executar_historico("""
@@ -324,9 +332,25 @@ def importar_produtividade(arquivo):
         .str.upper()
     )
 
-    df["data_hora"] = pd.to_datetime(df[col_data_hora], errors="coerce")
+    df["data_hora"] = pd.to_datetime(df["data_hora"], errors="coerce")
     df["hora"] = df["data_hora"].dt.hour
-    df["data"] = df["data_hora"].dt.date
+    df["data"] = df["data_hora"].apply(ajustar_data_operacional)
+
+    def definir_turno(data_hora):
+        if pd.isna(data_hora):
+            return None
+
+        hora = data_hora.hour
+        minuto = data_hora.minute
+
+        if (hora == 5 and minuto >= 30) or (6 <= hora < 13) or (hora == 13 and minuto < 50):
+            return "T1"
+        elif (hora == 13 and minuto >= 50) or (14 <= hora < 22):
+            return "T2"
+        else:
+            return "T3"
+
+    df["turno"] = df["data_hora"].apply(definir_turno)
 
     # 🔥 CLASSIFICAÇÃO
     def classificar_dispositivo(op):
@@ -357,138 +381,6 @@ def importar_produtividade(arquivo):
 
     colunas = [
         "cliente", "estado", "hub", "operador",
-        "data", "hora", "dispositivo",
-        "volumes", "nome_arquivo", "data_importacao"
-    ]
-
-    values = [
-        tuple(None if pd.isna(v) else v for v in row)
-        for row in df[colunas].itertuples(index=False, name=None)
-    ]
-
-    execute_values(
-        cur,
-        f"INSERT INTO produtividade ({','.join(colunas)}) VALUES %s",
-        values
-    )
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    return len(df)
-    
-    # =========================
-    # 🧠 MAPEAR COLUNAS (NOVO)
-    # =========================
-    df["cliente"] = df.get("cliente", "Desconhecido")
-    df["estado"] = df.get("estado", "Desconhecido")
-    df["hub"] = df.get("hub", "Desconhecido")
-    df["operador"] = df.get("operador", "Desconhecido")
-    df["data_hora"] = pd.to_datetime(df.get("data_hora"), errors="coerce")
-
-    df = pd.read_excel(arquivo)
-
-    # 🔥 RENOMEAR COLUNAS
-    df = df.rename(columns={
-        "客户名称(Nome do Cliente)": "cliente",
-        "操作时间(tempo de operação)": "data_hora",
-        "收件人州(Estado do destinatário)": "estado",
-        "预派送网点(Ponto de Pré-entrega)": "hub",
-        "操作人(Operador)": "operador"
-    })
-
-    if df.empty:
-        return 0
-
-    # 🔥 GARANTIR COLUNAS
-    df["cliente"] = df.get("cliente", "Desconhecido")
-    df["estado"] = df.get("estado", "Desconhecido")
-    df["hub"] = df.get("hub", "Desconhecido")
-    df["operador"] = df.get("operador", "Desconhecido")
-
-    # 🔥 LIMPEZA PESADA (IMPORTANTE)
-    df["operador"] = (
-        df["operador"]
-        .astype(str)
-        .str.strip()
-        .str.upper()
-    )
-
-    df["data_hora"] = pd.to_datetime(df.get("data_hora"), errors="coerce")
-    df["hora"] = df["data_hora"].dt.hour
-    df["data"] = df["data_hora"].dt.date
-
-    # =========================
-    # ⏱️ DATA / HORA (CORRIGIDO)
-    # =========================
-    df["data_hora"] = pd.to_datetime(df["data_hora"], errors="coerce")
-    df["hora"] = df["data_hora"].dt.hour
-    df["data"] = df["data_hora"].dt.date
-
-    # =========================
-    # 🧹 LIMPEZA
-    # =========================
-
-    excluir = ["devolucao01", "devolucao02", "devolucao03", "MG01"]
-    df = df[~df["operador"].isin(excluir)]
-
-    # =========================
-    # ⏱️ DATA / HORA
-    # =========================
-    df["data_hora"] = pd.to_datetime(df["data_hora"], errors="coerce")
-    df["hora"] = df["data_hora"].dt.hour
-
-    def definir_turno(h):
-        if 6 <= h < 14:
-            return "Manhã"
-        elif 14 <= h < 22:
-            return "Tarde"
-        else:
-            return "Noite"
-
-    df["turno"] = df["hora"].apply(definir_turno)
-
-    # =========================
-    # ⚙️ DISPOSITIVO
-    # =========================
-    def classificar_dispositivo(op):
-        op = str(op).strip().upper()
-
-        if "PERUS01" in op:
-            return "Sorter Oval"
-        elif "PERUS02" in op:
-            return "Sorter Linear"
-        else:
-            return "Cubometro"
-
-    df["dispositivo"] = df["operador"].apply(classificar_dispositivo)
-
-    # =========================
-    # 📦 VOLUME
-    # =========================
-    df["volumes"] = 1
-
-    # =========================
-    # 📅 CONTROLE
-    # =========================
-    df["data"] = df["data_hora"].dt.date
-    df["data_importacao"] = datetime.now()
-    df["nome_arquivo"] = arquivo.name
-
-    # =========================
-    # 💾 SALVAR NO BANCO
-    # =========================
-    from psycopg2.extras import execute_values
-    from core.database import conectar_operacional
-
-    conn = conectar_operacional()
-    cur = conn.cursor()
-
-    cur.execute("DELETE FROM produtividade WHERE nome_arquivo = %s", [arquivo.name])
-
-    colunas = [
-        "cliente", "estado", "hub", "operador",
         "data", "hora", "turno", "dispositivo",
         "volumes", "nome_arquivo", "data_importacao"
     ]
@@ -509,8 +401,13 @@ def importar_produtividade(arquivo):
     conn.close()
 
     return len(df)
-
+    
 def importar_tempo_processamento(arquivo):
+
+    import pandas as pd
+    from datetime import datetime
+    from psycopg2.extras import execute_values
+    from core.database import conectar_processamento
 
     df = pd.read_excel(arquivo)
 
@@ -523,8 +420,12 @@ def importar_tempo_processamento(arquivo):
 
     df_tratado["estado"] = df["收件人州(Estado do destinatário)"]
     df_tratado["ponto_entrada"] = df["实际入库网点(Ponto de entrada)"]
-    df_tratado["entrada_hub1"] = pd.to_datetime(df["一级分拨到件时间(Entrada no centro nível 01)"], errors="coerce")
-    df_tratado["saida_hub1"] = pd.to_datetime(df["一级分拨发件时间(Saída do centro nível 01)"], errors="coerce")
+    df_tratado["entrada_hub1"] = pd.to_datetime(
+        df["一级分拨到件时间(Entrada no centro nível 01)"], errors="coerce"
+    )
+    df_tratado["saida_hub1"] = pd.to_datetime(
+        df["一级分拨发件时间(Saída do centro nível 01)"], errors="coerce"
+    )
 
     df_tratado["nome_arquivo"] = arquivo.name
     df_tratado["data_importacao"] = datetime.now()
