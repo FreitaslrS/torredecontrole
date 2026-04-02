@@ -302,4 +302,12 @@ def excluir_arquivo(nome_arquivo):
         [nome_arquivo]
     )
 
+    # 🔥 ADICIONA ISSO AQUI
+    from core.database import executar_processamento
+
+    executar_processamento(
+        "DELETE FROM tempo_processamento WHERE nome_arquivo = %s",
+        [nome_arquivo]
+    )
+
     st.cache_data.clear()

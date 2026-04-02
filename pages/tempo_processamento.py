@@ -2,7 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from core.repository import buscar_tempo_processamento
+from core.repository import (
+    buscar_tempo_processamento,
+    buscar_tempo_processamento_geral,
+    buscar_hiata_por_dia,
+    buscar_consolidado_por_dia
+)
 
 cores = {
     "Até 24h": "#16A34A",
@@ -37,7 +42,12 @@ def render():
     <p style='opacity:0.7'>Tempo entre entrada e saída HUB 1 / HUB1入库到出库时间</p>
     """, unsafe_allow_html=True)
 
-    df = buscar_tempo_processamento()
+    modo = st.radio("Modo de análise", ["H01 (TFK)", "Geral"])
+
+    if modo == "H01 (TFK)":
+        df = buscar_tempo_processamento()
+    else:
+        df = buscar_tempo_processamento_geral()
 
     if df.empty:
         st.warning("Sem dados / 暂无数据")
@@ -72,6 +82,9 @@ def render():
         (df["saida_hub1"] - df["entrada_hub1"])
         .dt.total_seconds() / 3600
     )
+
+    # 🔥 FILTRO TFK + H01
+    df_h01 = df.copy() if not df.empty else pd.DataFrame()
 
     # =========================
     # 📊 SLA
@@ -252,3 +265,62 @@ def render():
     st.subheader("📊 Tempo por Estado / 各州时效")
 
     st.dataframe(tabela, use_container_width=True)
+
+    # ======================================
+    # 🥧 TABELA DESTINO DIRETO AOS ESTADOS
+    # ======================================
+
+    tabela_h01 = (
+        df_h01.groupby("estado")
+        .agg(
+            total=("estado", "count"),
+            dentro_sla=("tempo_horas", lambda x: (x <= 24).sum()),
+            fora_sla=("tempo_horas", lambda x: (x > 24).sum())
+        )
+        .reset_index()
+    )
+
+    # ======================================
+    # 🥧 TABELA DESTINOS H01 (ENVIO DIRETO)
+    # ======================================
+
+    st.subheader("📊 Volume de Hiatas H001 por Dia")
+
+    df_hiata = buscar_hiata_por_dia(data_inicio, data_fim)
+
+    if not df_hiata.empty:
+
+        tabela_hiata = (
+            df_hiata
+            .pivot(index="data", columns="hiata", values="qtd")
+            .fillna(0)
+            .reset_index()
+        )
+
+        st.dataframe(tabela_hiata, use_container_width=True)
+
+    else:
+        st.warning("Sem dados de hiata")
+
+    st.subheader("📊 Consolidação Operacional (Perus + TFK)")
+
+    df_cons = buscar_consolidado_por_dia(data_inicio, data_fim)
+
+    if not df_cons.empty:
+
+        # 📊 MÉDIAS
+        media_perus = df_cons["total_perus"].mean()
+        media_tfk = df_cons["total_tfk"].mean()
+        media_total = df_cons["total_geral"].mean()
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric("📦 Perus", f"{media_perus:.0f}/dia")
+        col2.metric("🚚 TFK Direto", f"{media_tfk:.0f}/dia")
+        col3.metric("🔥 Total", f"{media_total:.0f}/dia")
+
+        # 📋 TABELA
+        st.dataframe(df_cons, use_container_width=True)
+
+    else:
+        st.warning("Sem dados para o período")

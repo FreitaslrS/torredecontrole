@@ -500,17 +500,30 @@ def importar_tempo_processamento(arquivo):
 
     df_tratado["estado"] = df["收件人州(Estado do destinatário)"]
     df_tratado["ponto_entrada"] = df["实际入库网点(Ponto de entrada)"]
+
     df_tratado["entrada_hub1"] = pd.to_datetime(
         df["一级分拨到件时间(Entrada no centro nível 01)"], errors="coerce"
     )
+
     df_tratado["saida_hub1"] = pd.to_datetime(
         df["一级分拨发件时间(Saída do centro nível 01)"], errors="coerce"
     )
 
+    # 🔥 NOVO (CORRIGIDO COM CHINÊS)
+    df_tratado["cliente"] = df["客户名称(Nome do cliente)"]
+
+    df_tratado["hiata"] = df["下一站(Próximo ponto)"] if "下一站(Próximo ponto)" in df.columns else None
+
     df_tratado["nome_arquivo"] = arquivo.name
     df_tratado["data_importacao"] = datetime.now()
 
+    df_tratado["data_snapshot"] = datetime.now().date()
+
+    # 🔥 remove linhas sem data válida
     df_tratado = df_tratado.dropna(subset=["entrada_hub1"])
+
+    # 🔥 agora sim cria data
+    df_tratado["data"] = df_tratado["entrada_hub1"].dt.date
 
     conn = conectar_processamento()
     cur = conn.cursor()
@@ -520,6 +533,10 @@ def importar_tempo_processamento(arquivo):
         "ponto_entrada",
         "entrada_hub1",
         "saida_hub1",
+        "cliente",
+        "hiata",
+        "data",
+        "data_snapshot",
         "nome_arquivo",
         "data_importacao"
     ]

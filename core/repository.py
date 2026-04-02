@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from psycopg2.extras import execute_values
 
 from core.database import (
@@ -410,9 +411,20 @@ def buscar_tempo_processamento():
             estado,
             ponto_entrada,
             entrada_hub1,
-            saida_hub1
+            saida_hub1,
+            cliente,
+            hiata
         FROM tempo_processamento
         WHERE entrada_hub1 IS NOT NULL
+        AND cliente = 'szanjun'
+        AND hiata IN (
+            'ES-W-H001',
+            'MG-W-H001',
+            'PR-W-H001',
+            'RJ-W-H001',
+            'RS-W-H001',
+            'SC-W-H001'
+        )
     """
 
     return consultar_processamento(query)   # 🔥 TEM QUE SER ISSO
@@ -424,3 +436,105 @@ def buscar_devolucoes(limit=1000):
         ORDER BY data_devolucao DESC
         LIMIT %s
     """, [limit])
+
+
+# =========================
+# ⏱️ CALCULO DE PACOTES H1
+# =========================
+@st.cache_data(ttl=300)
+def buscar_tempo_processamento_geral():
+
+    query = """
+        SELECT 
+            estado,
+            ponto_entrada,
+            entrada_hub1,
+            saida_hub1,
+            cliente,
+            hiata
+        FROM tempo_processamento
+        WHERE entrada_hub1 IS NOT NULL
+    """
+
+    return consultar_processamento(query)
+
+@st.cache_data(ttl=300)
+def buscar_hiata_por_dia(data_inicio=None, data_fim=None):
+
+    query = """
+        SELECT 
+            DATE(data_importacao) as data,
+            hiata,
+            COUNT(*) as qtd
+        FROM tempo_processamento
+        WHERE hiata IN (
+            'ES-W-H001',
+            'MG-W-H001',
+            'PR-W-H001',
+            'RJ-W-H001',
+            'RS-W-H001',
+            'SC-W-H001'
+        )
+    """
+
+    params = []
+
+    # 🔥 FILTRO DE PERÍODO (AGORA FUNCIONA)
+    if data_inicio and data_fim:
+        query += " AND DATE(data_importacao) BETWEEN %s AND %s"
+        params.extend([data_inicio, data_fim])
+
+    query += """
+        GROUP BY DATE(data_importacao), hiata
+        ORDER BY data DESC
+    """
+
+    return consultar_processamento(query, params)
+
+@st.cache_data(ttl=300)
+def buscar_consolidado_por_dia(data_inicio=None, data_fim=None):
+
+    query_prod = """
+        SELECT 
+            DATE(data_importacao) as data,
+            SUM(volumes) as total_perus
+        FROM produtividade
+        WHERE 1=1
+    """
+
+    query_tfk = """
+        SELECT 
+            DATE(data_importacao) as data,
+            COUNT(*) as total_tfk
+        FROM tempo_processamento
+        WHERE hiata IN (
+            'ES-W-H001',
+            'MG-W-H001',
+            'PR-W-H001',
+            'RJ-W-H001',
+            'RS-W-H001',
+            'SC-W-H001'
+        )
+    """
+
+    params = []
+
+    if data_inicio and data_fim:
+        filtro = " AND DATE(data_importacao) BETWEEN %s AND %s"
+        query_prod += filtro
+        query_tfk += filtro
+        params.extend([data_inicio, data_fim])
+
+    query_prod += " GROUP BY DATE(data_importacao)"
+    query_tfk += " GROUP BY DATE(data_importacao)"
+
+    df_prod = consultar_operacional(query_prod, params)
+    df_tfk = consultar_processamento(query_tfk, params)
+
+    df = pd.merge(df_prod, df_tfk, on="data", how="outer")
+
+    df["total_perus"] = df["total_perus"].fillna(0)
+    df["total_tfk"] = df["total_tfk"].fillna(0)
+    df["total_geral"] = df["total_perus"] + df["total_tfk"]
+
+    return df.sort_values("data", ascending=False)
